@@ -1,0 +1,71 @@
+//@version=6
+indicator('VIPER DECIMAL APPROXIMATION & TRUNCATE', overlay = true)
+
+// Custom user-defined decimal adjustment
+var int CUSTOM_USER_DECIMAL_ADJUSTMENT = input.int(defval = 1, title = "USER CUSTOM DECIMALS ADJUSTMENT", tooltip = "Adjust decimal precision manually if needed", maxval = 64, minval = -16, step = 1)
+
+// Function for decimal approximation
+VIPER_DECIMAL_APPROXIMATION_FUNCTION(NUMBER) =>
+    var int DECIMALS = 0
+    if NUMBER <= 10
+        DECIMALS := 16 + CUSTOM_USER_DECIMAL_ADJUSTMENT
+    else if NUMBER <= 99
+        DECIMALS := 8 + CUSTOM_USER_DECIMAL_ADJUSTMENT
+    else if NUMBER <= 999
+        DECIMALS := 5 + CUSTOM_USER_DECIMAL_ADJUSTMENT
+    else
+        DECIMALS := 3 + CUSTOM_USER_DECIMAL_ADJUSTMENT
+    [DECIMALS]
+
+// Function for truncating a number to a specific decimal precision
+VIPER_NUMBER_TRUNCATE_FUNCTION(NUMBER, DECIMALS) =>
+    var float FACTOR = na
+    var float RESULT = na
+    FACTOR := math.pow(10, DECIMALS + CUSTOM_USER_DECIMAL_ADJUSTMENT)
+    RESULT := math.floor(math.ceil(NUMBER * FACTOR)) * math.pow(FACTOR, -1)
+    [FACTOR, RESULT]
+
+// Input number (closing price)
+NUMBER = request.security(syminfo.tickerid, "1", close)
+
+// Retrieve appropriate decimal precision
+[DECIMALS] = VIPER_DECIMAL_APPROXIMATION_FUNCTION(NUMBER)
+
+// Convert input number to string
+APPROX_VALUE = str.tostring(NUMBER, '########.########')
+
+// Compute truncated value
+[FACTOR, TRUNCATED_VALUE] = VIPER_NUMBER_TRUNCATE_FUNCTION(NUMBER, DECIMALS)
+
+// Create a new table
+var table TBL = table.new(position = position.top_center, columns = 3, rows = 5, bgcolor = color.gray)
+
+// Custom colors for table
+HEADER_BG_COLOR = color.rgb(255, 213, 0)   // Header background
+HEADER_TEXT_COLOR = color.rgb(0, 0, 0)     // Header text color
+CELL_BG_COLOR = color.rgb(0, 20, 93)       // Cell background
+CELL_TEXT_COLOR = color.rgb(255, 255, 255) // Cell text color
+
+if barstate.islast
+    // Merge top row for table title
+    table.cell(TBL, column = 0, row = 0, text = 'VIPER DECIMAL APPROXIMATION & TRUNCATE', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+    table.merge_cells(TBL, 0, 0, 2, 0)
+
+    // Merge second row for grouped category header
+    table.cell(TBL, column = 0, row = 1, text = 'Original & Processed Values', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+    table.merge_cells(TBL, 0, 1, 2, 1)
+
+    // Column headers
+    table.cell(TBL, column = 0, row = 2, text = 'Original Value', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+    table.cell(TBL, column = 1, row = 2, text = 'Decimals', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+    table.cell(TBL, column = 2, row = 2, text = 'Truncated Value', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+
+    // Populate table with values
+    table.cell(TBL, column = 0, row = 3, text = str.tostring(NUMBER, '########.########'), bgcolor = CELL_BG_COLOR, text_color = CELL_TEXT_COLOR)
+    table.cell(TBL, column = 1, row = 3, text = str.tostring(DECIMALS), bgcolor = CELL_BG_COLOR, text_color = CELL_TEXT_COLOR)
+    table.cell(TBL, column = 2, row = 3, text = str.tostring(TRUNCATED_VALUE, '########.########'), bgcolor = CELL_BG_COLOR, text_color = CELL_TEXT_COLOR)
+
+    // Additional row for approximation and factor
+    table.cell(TBL, column = 0, row = 4, text = 'Approx Value', bgcolor = HEADER_BG_COLOR, text_color = HEADER_TEXT_COLOR)
+    table.cell(TBL, column = 1, row = 4, text = APPROX_VALUE, bgcolor = CELL_BG_COLOR, text_color = CELL_TEXT_COLOR)
+    table.cell(TBL, column = 2, row = 4, text = 'FACTOR: ' + str.tostring(FACTOR, '########.########'), bgcolor = CELL_BG_COLOR, text_color = CELL_TEXT_COLOR)
